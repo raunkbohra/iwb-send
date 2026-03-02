@@ -1,0 +1,30 @@
+{
+  "name": "@iwb/email-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Email worker - processes email send jobs from SQS",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/handler.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@aws-sdk",
+    "dev": "esbuild src/handler.ts --bundle --platform=node --format=esm --outfile=dist/index.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iwb/db": "workspace:*",
+    "@iwb/shared": "workspace:*",
+    "@iwb/observability": "workspace:*",
+    "@iwb/providers": "workspace:*",
+    "@iwb/routing": "workspace:*",
+    "@aws-sdk/client-secrets-manager": "^3.500.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.126",
+    "@types/node": "^20.10.0",
+    "esbuild": "^0.19.11",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
