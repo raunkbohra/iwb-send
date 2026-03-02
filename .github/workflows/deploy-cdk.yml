@@ -1,0 +1,80 @@
+name: Deploy CDK Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/aws/**'
+      - 'services/workers/**'
+      - '.github/workflows/deploy-cdk.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all workers
+        run: pnpm turbo run build --filter "services/workers/*"
+
+      - name: Build CDK
+        run: pnpm --filter @iwb/infra-aws run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-south-1
+
+      - name: CDK Synth
+        working-directory: infra/aws
+        run: pnpm cdk:synth
+
+      - name: CDK Deploy
+        working-directory: infra/aws
+        run: pnpm cdk:deploy
+        env:
+          CDK_DEPLOY_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Verify deployment
+        run: |
+          aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `iwb-`)]' --output table
+
+  rollback-on-failure:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+    steps:
+      - name: Notify deployment failure
+        run: echo "CDK deployment failed. Manual rollback may be required."
+
+      - name: Create issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'CDK Deployment Failed',
+              body: 'CDK deployment failed. See workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+              labels: ['infrastructure', 'alert']
+            })
