@@ -33,9 +33,9 @@ export class CandidateSelector {
     });
 
     return routes
-      .filter((r) => r.providerAccount.status === 'ACTIVE')
-      .map((r) => ({
-        providerAccountId: r.providerAccount.id,
+      .filter((r: typeof routes[0]) => r.providerAccount && r.providerAccount.status === 'ACTIVE')
+      .map((r: typeof routes[0]) => ({
+        providerAccountId: r.providerAccount!.id,
         priority: r.priority,
         weight: r.weight,
       }));
