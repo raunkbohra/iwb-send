@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm run build",
-  "installCommand": "pnpm install",
   "framework": "nextjs",
+  "buildCommand": "npm install -g pnpm && pnpm install --filter=@iwb/api... && pnpm --filter=@iwb/api run build",
+  "installCommand": "npm install -g pnpm && cd ../.. && pnpm install",
   "env": {
     "AWS_REGION": "@aws-region"
   }
