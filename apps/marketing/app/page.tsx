@@ -32,27 +32,27 @@ export default function Home() {
           <h2>Powerful Features</h2>
           <div className="features-grid">
             <div className="feature-card">
-              <h3>📱 Multi-Channel</h3>
+              <h3>Multi-Channel</h3>
               <p>Send SMS, Email, WhatsApp, and Voice from a single API endpoint. No vendor lock-in.</p>
             </div>
             <div className="feature-card">
-              <h3>🚀 Intelligent Routing</h3>
+              <h3>Intelligent Routing</h3>
               <p>Smart routing engine automatically selects the best provider based on compliance, cost, and reliability.</p>
             </div>
             <div className="feature-card">
-              <h3>🔒 Multi-Tenant</h3>
+              <h3>Multi-Tenant</h3>
               <p>Enterprise-grade isolation. Perfect for SaaS platforms and agencies serving multiple customers.</p>
             </div>
             <div className="feature-card">
-              <h3>📊 Real-Time Analytics</h3>
+              <h3>Real-Time Analytics</h3>
               <p>Track delivery status, costs, and performance in real-time. Detailed logs for every message.</p>
             </div>
             <div className="feature-card">
-              <h3>💰 Pay As You Go</h3>
+              <h3>Pay As You Go</h3>
               <p>No monthly commitments. Pay only for messages sent. Transparent pricing, no hidden fees.</p>
             </div>
             <div className="feature-card">
-              <h3>🌍 Global Coverage</h3>
+              <h3>Global Coverage</h3>
               <p>Support for multiple providers across Nepal, India, and worldwide. Automatic failover for reliability.</p>
             </div>
           </div>
