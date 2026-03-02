@@ -34,9 +34,9 @@ echo "1️⃣  Deploying Marketing Site..."
 echo "   Root: apps/marketing"
 echo "   Domain: www.iwbsend.com"
 cd "$ROOT_DIR/apps/marketing"
-vercel --prod --name iwb-send-marketing
-MARKETING_URL=$(vercel ls --json | jq -r '.[0].url' 2>/dev/null || echo "Check Vercel Dashboard")
-echo "✅ Marketing deployed: $MARKETING_URL"
+vercel --prod --yes
+MARKETING_URL=$(vercel ls --json 2>/dev/null | jq -r '.[0].url' 2>/dev/null || echo "Check Vercel Dashboard")
+echo "✅ Marketing deployed"
 echo ""
 
 # 2. Deploy Dashboard
@@ -44,9 +44,9 @@ echo "2️⃣  Deploying Dashboard..."
 echo "   Root: apps/dashboard"
 echo "   Domain: app.iwbsend.com"
 cd "$ROOT_DIR/apps/dashboard"
-vercel --prod --name iwb-send-dashboard --env NEXT_PUBLIC_API_URL=https://api.iwbsend.com
-DASHBOARD_URL=$(vercel ls --json | jq -r '.[0].url' 2>/dev/null || echo "Check Vercel Dashboard")
-echo "✅ Dashboard deployed: $DASHBOARD_URL"
+vercel --prod --yes --env NEXT_PUBLIC_API_URL=https://api.iwbsend.com
+DASHBOARD_URL=$(vercel ls --json 2>/dev/null | jq -r '.[0].url' 2>/dev/null || echo "Check Vercel Dashboard")
+echo "✅ Dashboard deployed"
 echo ""
 
 # 3. Deploy API
@@ -54,9 +54,9 @@ echo "3️⃣  Deploying API..."
 echo "   Root: apps/api"
 echo "   Domain: api.iwbsend.com"
 cd "$ROOT_DIR/apps/api"
-vercel --prod --name iwb-send-api --env AWS_REGION=ap-south-1
-API_URL=$(vercel ls --json | jq -r '.[0].url' 2>/dev/null || echo "Check Vercel Dashboard")
-echo "✅ API deployed: $API_URL"
+vercel --prod --yes --env AWS_REGION=ap-south-1
+API_URL=$(vercel ls --json 2>/dev/null | jq -r '.[0].url' 2>/dev/null || echo "Check Vercel Dashboard")
+echo "✅ API deployed"
 echo ""
 
 echo "================================"
