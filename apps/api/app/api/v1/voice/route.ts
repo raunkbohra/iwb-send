@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@iwb/db';
-import { Channel, Purpose, AppError } from '@iwb/shared';
+import { Channel, Purpose, AppError, generateCorrelationId } from '@iwb/shared';
 import { validateApiKey, extractApiKey } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { checkBalance } from '@/lib/wallet';
@@ -8,11 +8,16 @@ import { enqueueSendJob } from '@/lib/enqueue';
 
 export async function POST(request: NextRequest) {
   try {
+    const correlationId = generateCorrelationId();
+
     const authHeader = request.headers.get('Authorization');
     const apiKeyRaw = extractApiKey(authHeader);
     if (!apiKeyRaw) throw AppError.invalidApiKey();
 
-    const { tenantId } = await validateApiKey(apiKeyRaw);
+    const authResult = await validateApiKey(apiKeyRaw);
+    if (!authResult) throw AppError.invalidApiKey();
+
+    const { tenantId } = authResult;
 
     const body = await request.json();
     const { to, from, content, templateId, idempotencyKey } = body;
@@ -21,8 +26,11 @@ export async function POST(request: NextRequest) {
       throw AppError.invalidRequest({ message: 'Missing required field: to' });
     }
 
-    checkRateLimit(tenantId, Channel.VOICE);
-    await checkBalance(tenantId, Channel.VOICE);
+    if (!checkRateLimit(tenantId)) {
+      throw AppError.rateLimitExceeded();
+    }
+    
+    await checkBalance(tenantId, BigInt(10000));
 
     const message = await prisma.message.create({
       data: {
@@ -30,12 +38,13 @@ export async function POST(request: NextRequest) {
         channel: Channel.VOICE,
         purpose: Purpose.TRANSACTIONAL,
         to,
-        from,
-        templateId,
-        content,
+        from: from || null,
+        templateId: templateId || null,
+        content: content,
         status: 'QUEUED',
-        idempotencyKey,
+        idempotencyKey: idempotencyKey || null,
         costUnits: BigInt(10000),
+        metadata: { correlationId },
       },
     });
 
@@ -45,6 +54,7 @@ export async function POST(request: NextRequest) {
       channel: Channel.VOICE,
       purpose: Purpose.TRANSACTIONAL,
       priority: 'HIGH',
+      correlationId,
     });
 
     return NextResponse.json({

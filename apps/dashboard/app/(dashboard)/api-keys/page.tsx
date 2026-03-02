@@ -40,7 +40,7 @@ export default function ApiKeysPage() {
                 type="text"
                 placeholder="Production, Development, Testing..."
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName((e.currentTarget as HTMLInputElement).value)}
               />
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>

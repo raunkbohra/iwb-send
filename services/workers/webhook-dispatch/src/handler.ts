@@ -11,7 +11,7 @@ import { createHmac } from 'crypto';
 export const handler = async (
   event: SQSEvent
 ): Promise<SQSBatchResponse> => {
-  const batchItemFailures: Array<{ itemId: string; reason?: string }> = [];
+  const batchItemFailures: Array<{ itemIdentifier: string; reason?: string }> = [];
 
   logger.info('Webhook dispatch received batch', {
     messageCount: event.Records.length,
@@ -40,7 +40,7 @@ export const handler = async (
       });
 
       batchItemFailures.push({
-        itemId: record.messageId,
+        itemIdentifier: record.messageId,
         reason:
           error instanceof Error ? error.message : 'Unknown error occurred',
       });

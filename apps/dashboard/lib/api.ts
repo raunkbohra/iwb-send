@@ -4,7 +4,7 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export async function apiCall<T>(
+export async function apiCall<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -22,7 +22,7 @@ export async function apiCall<T>(
     throw new Error(`API error: ${response.status}`);
   }
 
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
 export async function getMessages() {

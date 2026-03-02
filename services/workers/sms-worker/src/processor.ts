@@ -134,8 +134,8 @@ export async function processSmsJob(
     sendResult = await provider.send(
       {
         to: message.to,
-        from: message.from,
-        content: message.content,
+        from: message.from || '',
+        content: message.content as Record<string, unknown>,
       },
       credentials
     );
@@ -167,28 +167,38 @@ export async function processSmsJob(
   }
 
   // 6. Update message: status=SENT, provider_message_id, attempt_count++
+  const updateData: Parameters<typeof prisma.message.update>[0]['data'] = {
+    status: MessageStatus.SENT,
+    provider: routeResult.provider,
+    sentAt: new Date(),
+    attemptCount: message.attemptCount + 1,
+  };
+  
+  if (sendResult.externalId) {
+    updateData.providerMessageId = sendResult.externalId;
+  }
+
   await prisma.message.update({
     where: { id: job.messageId },
-    data: {
-      status: MessageStatus.SENT,
-      provider: routeResult.provider,
-      providerMessageId: sendResult.externalId,
-      sentAt: new Date(),
-      attemptCount: message.attemptCount + 1,
-    },
+    data: updateData,
   });
 
   // 7. Append message_event (SENT)
+  const eventPayload: Record<string, unknown> = {};
+  if (sendResult.externalId) {
+    eventPayload.externalId = sendResult.externalId;
+  }
+  if (sendResult.cost) {
+    eventPayload.cost = sendResult.cost;
+  }
+
   await prisma.messageEvent.create({
     data: {
       messageId: job.messageId,
       tenantId: job.tenantId,
       type: EventType.SENT,
       provider: routeResult.provider,
-      payload: {
-        externalId: sendResult.externalId,
-        cost: sendResult.cost,
-      },
+      payload: eventPayload,
       occurredAt: new Date(),
     },
   });
@@ -203,7 +213,15 @@ export async function processSmsJob(
     throw AppError.internalError();
   }
 
-  const debitAmount = sendResult.cost || BigInt(1000); // Default to 1 unit if not specified
+  let debitAmount: bigint;
+  if (typeof sendResult.cost === 'bigint') {
+    debitAmount = sendResult.cost;
+  } else if (typeof sendResult.cost === 'number') {
+    debitAmount = BigInt(sendResult.cost);
+  } else {
+    debitAmount = BigInt(1000); // Default to 1 unit
+  }
+
   const newBalance = walletAccount.balanceUnits - debitAmount;
 
   if (newBalance < 0n) {

@@ -12,7 +12,10 @@ export async function GET(
     const apiKeyRaw = extractApiKey(authHeader);
     if (!apiKeyRaw) throw AppError.invalidApiKey();
 
-    const { tenantId } = await validateApiKey(apiKeyRaw);
+    const authResult = await validateApiKey(apiKeyRaw);
+    if (!authResult) throw AppError.invalidApiKey();
+
+    const { tenantId } = authResult;
 
     const message = await prisma.message.findFirst({
       where: {

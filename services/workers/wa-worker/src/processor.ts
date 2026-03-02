@@ -6,9 +6,9 @@ import {
   MessageStatus,
   EventType,
 } from '@iwb/shared';
-import { Logger } from '@iwb/observability';
+import { logger } from '@iwb/observability';
 import { SmartRoutingEngine } from '@iwb/routing';
-import { ProviderRegistry } from '@iwb/providers';
+import { providerRegistry } from '@iwb/providers';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
 const secretsClient = new SecretsManagerClient({
@@ -22,7 +22,7 @@ const credentialsCache = new Map<string, unknown>();
  */
 export async function processWaJob(
   job: SqsJobPayload,
-  logger: Logger
+  logger: any
 ): Promise<void> {
   const message = await prisma.message.findUnique({
     where: { id: job.messageId },
@@ -89,7 +89,10 @@ export async function processWaJob(
     credentialsCache.set(credentialKey, credentials);
   }
 
-  const provider = ProviderRegistry.getAdapter(routeResult.provider);
+  if (!provider) {
+    throw AppError.internalError();
+  }
+  const provider = providerRegistry.getAdapter(routeResult.provider, Channel.WHATSAPP);
   let sendResult;
 
   try {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@iwb/db';
-import { Channel, Purpose, AppError } from '@iwb/shared';
+import { Channel, Purpose, AppError, generateCorrelationId } from '@iwb/shared';
 import { validateApiKey, extractApiKey } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { checkBalance } from '@/lib/wallet';
@@ -8,12 +8,17 @@ import { enqueueSendJob } from '@/lib/enqueue';
 
 export async function POST(request: NextRequest) {
   try {
+    const correlationId = generateCorrelationId();
+
     // Auth
     const authHeader = request.headers.get('Authorization');
     const apiKeyRaw = extractApiKey(authHeader);
     if (!apiKeyRaw) throw AppError.invalidApiKey();
 
-    const { tenantId } = await validateApiKey(apiKeyRaw);
+    const authResult = await validateApiKey(apiKeyRaw);
+    if (!authResult) throw AppError.invalidApiKey();
+
+    const { tenantId } = authResult;
 
     // Parse
     const body = await request.json();
@@ -24,10 +29,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check rate limit
-    checkRateLimit(tenantId, Channel.EMAIL);
+    if (!checkRateLimit(tenantId)) {
+      throw AppError.rateLimitExceeded();
+    }
 
     // Check balance
-    await checkBalance(tenantId, Channel.EMAIL);
+    await checkBalance(tenantId, BigInt(100));
 
     // Create message
     const message = await prisma.message.create({
@@ -36,11 +43,12 @@ export async function POST(request: NextRequest) {
         channel: Channel.EMAIL,
         purpose: Purpose.TRANSACTIONAL,
         to,
-        from,
+        from: from || null,
         content: { subject, html, text },
         status: 'QUEUED',
-        idempotencyKey,
+        idempotencyKey: idempotencyKey || null,
         costUnits: BigInt(100),
+        metadata: { correlationId },
       },
     });
 
@@ -51,6 +59,7 @@ export async function POST(request: NextRequest) {
       channel: Channel.EMAIL,
       purpose: Purpose.TRANSACTIONAL,
       priority: 'BULK',
+      correlationId,
     });
 
     return NextResponse.json({

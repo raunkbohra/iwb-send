@@ -49,7 +49,7 @@ export default function MessagesPage() {
           />
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => setFilter((e.currentTarget as HTMLSelectElement).value)}
             style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
           >
             <option value="all">All Status</option>

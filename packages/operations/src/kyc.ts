@@ -42,7 +42,7 @@ export async function uploadKycDocument(
       type,
       fileUrl,
       status: 'PENDING',
-      notes,
+      notes: notes || null,
     },
   });
 

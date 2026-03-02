@@ -36,6 +36,9 @@ export enum EventType {
   FAILED = 'FAILED',
   BOUNCED = 'BOUNCED',
   COMPLAINED = 'COMPLAINED',
+  DELIVERY_FAILED = 'DELIVERY_FAILED',
+  BOUNCE = 'BOUNCE',
+  COMPLAINT = 'COMPLAINT',
 }
 
 export enum WalletEntryType {

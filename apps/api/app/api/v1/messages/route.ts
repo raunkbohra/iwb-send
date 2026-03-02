@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
     const apiKeyRaw = extractApiKey(authHeader);
     if (!apiKeyRaw) throw AppError.invalidApiKey();
 
-    const { tenantId } = await validateApiKey(apiKeyRaw);
+    const authResult = await validateApiKey(apiKeyRaw);
+    if (!authResult) throw AppError.invalidApiKey();
+
+    const { tenantId } = authResult;
 
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');

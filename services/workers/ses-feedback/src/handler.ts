@@ -84,24 +84,33 @@ async function processBounce(
       });
 
       // Add to suppression list
-      await prisma.suppressionList.upsert({
+      const existing = await prisma.suppressionListItem.findFirst({
         where: {
-          email_tenantId: {
-            email,
-            tenantId: null, // Global suppression
-          },
-        },
-        update: {
-          reason,
-          source: 'SES_BOUNCE',
-        },
-        create: {
           email,
-          reason,
-          source: 'SES_BOUNCE',
           tenantId: null,
+          phone: null,
         },
       });
+
+      if (existing) {
+        await prisma.suppressionListItem.update({
+          where: { id: existing.id },
+          data: {
+            reason,
+            source: 'SES_BOUNCE',
+          },
+        });
+      } else {
+        await prisma.suppressionListItem.create({
+          data: {
+            email,
+            reason,
+            source: 'SES_BOUNCE',
+            tenantId: null,
+            phone: null,
+          },
+        });
+      }
 
       // Find and fail associated messages
       const messages = await prisma.message.findMany({
@@ -153,24 +162,33 @@ async function processComplaint(
     });
 
     // Add to suppression list
-    await prisma.suppressionList.upsert({
+    const existing = await prisma.suppressionListItem.findFirst({
       where: {
-        email_tenantId: {
-          email,
-          tenantId: null,
-        },
-      },
-      update: {
-        reason,
-        source: 'SES_COMPLAINT',
-      },
-      create: {
         email,
-        reason,
-        source: 'SES_COMPLAINT',
         tenantId: null,
+        phone: null,
       },
     });
+
+    if (existing) {
+      await prisma.suppressionListItem.update({
+        where: { id: existing.id },
+        data: {
+          reason,
+          source: 'SES_COMPLAINT',
+        },
+      });
+    } else {
+      await prisma.suppressionListItem.create({
+        data: {
+          email,
+          reason,
+          source: 'SES_COMPLAINT',
+          tenantId: null,
+          phone: null,
+        },
+      });
+    }
 
     // Find and fail associated messages
     const messages = await prisma.message.findMany({

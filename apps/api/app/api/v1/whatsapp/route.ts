@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
     const apiKeyRaw = extractApiKey(authHeader);
     if (!apiKeyRaw) throw AppError.invalidApiKey();
 
-    const { tenantId } = await validateApiKey(apiKeyRaw);
+    const authResult = await validateApiKey(apiKeyRaw);
+    if (!authResult) throw AppError.invalidApiKey();
+
+    const { tenantId } = authResult;
 
     const body = await request.json();
     const { to, from, content, templateId, idempotencyKey } = body;
@@ -21,8 +24,13 @@ export async function POST(request: NextRequest) {
       throw AppError.invalidRequest({ message: 'Missing required fields' });
     }
 
-    checkRateLimit(tenantId, Channel.WHATSAPP);
-    await checkBalance(tenantId, Channel.WHATSAPP);
+    if (!checkRateLimit(tenantId)) {
+      throw AppError.rateLimitExceeded();
+    }
+
+    await checkBalance(tenantId, BigInt(2000)); // Estimated cost
+
+    const correlationId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     const message = await prisma.message.create({
       data: {
@@ -30,12 +38,13 @@ export async function POST(request: NextRequest) {
         channel: Channel.WHATSAPP,
         purpose: Purpose.TRANSACTIONAL,
         to,
-        from,
-        templateId,
-        content,
+        from: from || null,
+        templateId: templateId || null,
+        content: content,
         status: 'QUEUED',
-        idempotencyKey,
+        idempotencyKey: idempotencyKey || null,
         costUnits: BigInt(2000),
+        metadata: { correlationId },
       },
     });
 
@@ -45,6 +54,7 @@ export async function POST(request: NextRequest) {
       channel: Channel.WHATSAPP,
       purpose: Purpose.TRANSACTIONAL,
       priority: 'BULK',
+      correlationId,
     });
 
     return NextResponse.json({

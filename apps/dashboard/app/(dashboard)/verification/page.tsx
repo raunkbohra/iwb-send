@@ -34,7 +34,7 @@ export default function VerificationPage() {
               type="email"
               placeholder="noreply@mycompany.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail((e.currentTarget as HTMLInputElement).value)}
             />
           </div>
           <button className="primary">Add Domain</button>
@@ -48,7 +48,7 @@ export default function VerificationPage() {
           <label style={{ marginRight: '1rem' }}>Country:</label>
           <select
             value={country}
-            onChange={(e) => setCountry(e.target.value)}
+            onChange={(e) => setCountry((e.currentTarget as HTMLSelectElement).value)}
             style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
           >
             <option value="NP">Nepal</option>

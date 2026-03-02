@@ -3,7 +3,7 @@ import { prisma } from '@iwb/db';
 import { Channel, Purpose, AppError, generateCorrelationId } from '@iwb/shared';
 import { validateApiKey, extractApiKey } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { checkBalance, debitWallet } from '@/lib/wallet';
+import { checkBalance } from '@/lib/wallet';
 import { enqueueSendJob } from '@/lib/enqueue';
 
 export async function POST(request: NextRequest) {
@@ -17,7 +17,12 @@ export async function POST(request: NextRequest) {
       throw AppError.invalidApiKey();
     }
 
-    const { tenantId } = await validateApiKey(apiKeyRaw);
+    const authResult = await validateApiKey(apiKeyRaw);
+    if (!authResult) {
+      throw AppError.invalidApiKey();
+    }
+
+    const { tenantId } = authResult;
 
     // Parse body
     const body = await request.json();
@@ -28,10 +33,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check rate limit
-    checkRateLimit(tenantId, Channel.SMS);
+    if (!checkRateLimit(tenantId)) {
+      throw AppError.rateLimitExceeded();
+    }
 
     // Check wallet balance
-    await checkBalance(tenantId, Channel.SMS);
+    await checkBalance(tenantId, BigInt(1000)); // Estimated cost
 
     // Validate idempotency key (if provided)
     if (idempotencyKey) {
@@ -61,13 +68,13 @@ export async function POST(request: NextRequest) {
         channel: Channel.SMS,
         purpose: Purpose.TRANSACTIONAL,
         to,
-        from,
-        templateId,
-        content,
+        from: from || null,
+        templateId: templateId || null,
+        content: content,
         status: 'QUEUED',
-        idempotencyKey,
+        idempotencyKey: idempotencyKey || null,
         costUnits: BigInt(1000), // Estimated
-        metadata,
+        metadata: metadata || { correlationId },
       },
     });
 
@@ -78,6 +85,7 @@ export async function POST(request: NextRequest) {
       channel: Channel.SMS,
       purpose: Purpose.TRANSACTIONAL,
       priority: 'BULK',
+      correlationId,
     });
 
     return NextResponse.json({

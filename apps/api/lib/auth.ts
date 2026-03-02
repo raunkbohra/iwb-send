@@ -4,11 +4,16 @@ import { prisma } from '@iwb/db';
 /**
  * Extract API key from Authorization header
  */
-export function extractApiKey(authHeader?: string): string | null {
-  if (!authHeader) return null;
+export function extractApiKey(authHeader: string | null): string | null {
+  if (!authHeader) {
+    return null;
+  }
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') return null;
-  return parts[1];
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return null;
+  }
+  const key = parts[1];
+  return key ? key : null;
 }
 
 /**
@@ -31,11 +36,19 @@ export async function validateApiKey(
       },
     });
 
-    if (!apiKey) return null;
+    if (!apiKey) {
+      return null;
+    }
+
+    // Type cast the JSON scopes field
+    const scopesValue = apiKey.scopes;
+    const scopes: string[] = Array.isArray(scopesValue)
+      ? (scopesValue as string[])
+      : [];
 
     return {
       tenantId: apiKey.tenantId,
-      scopes: Array.isArray(apiKey.scopes) ? apiKey.scopes : [],
+      scopes,
     };
   } catch (error) {
     console.error('API key validation error:', error);
