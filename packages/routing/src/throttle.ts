@@ -43,7 +43,7 @@ export class Throttle {
 
     for (const [key] of this.counts) {
       const [, , windowStart] = key.split(':');
-      if (parseInt(windowStart, 10) < cutoff) {
+      if (windowStart && parseInt(windowStart, 10) < cutoff) {
         this.counts.delete(key);
       }
     }

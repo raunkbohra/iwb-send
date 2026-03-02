@@ -3,6 +3,8 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { QueuesStack } from '../lib/stacks/queues-stack';
 import { WorkersStack } from '../lib/stacks/workers-stack';
+import { ApiGatewayStack } from '../lib/stacks/api-gateway-stack';
+import { SnsStack } from '../lib/stacks/sns-stack';
 
 const app = new cdk.App();
 
@@ -29,6 +31,28 @@ const workersStack = new WorkersStack(app, 'iWB-WorkersStack', {
 
 // Add dependency: workers stack depends on queues stack
 workersStack.addDependency(queuesStack);
+
+// Create API Gateway Stack (for webhook-ingest Lambda)
+const apiGatewayStack = new ApiGatewayStack(app, 'iWB-ApiGatewayStack', {
+  env: environment,
+  webhookIngestFunction: workersStack.webhookIngestWorker.function,
+  description: 'iWB Send - API Gateway for webhook ingestion',
+  stackName: 'iwb-api-gateway',
+});
+
+// Add dependency: API Gateway depends on workers stack
+apiGatewayStack.addDependency(workersStack);
+
+// Create SNS Stack (for SES feedback)
+const snsStack = new SnsStack(app, 'iWB-SnsStack', {
+  env: environment,
+  sesFeedbackFunction: workersStack.sesFeedbackWorker.function,
+  description: 'iWB Send - SNS topic for SES bounce/complaint events',
+  stackName: 'iwb-sns',
+});
+
+// Add dependency: SNS depends on workers stack
+snsStack.addDependency(workersStack);
 
 // Output queue URLs and Lambda ARNs
 new cdk.CfnOutput(app, 'SmsHighQueueUrl', {

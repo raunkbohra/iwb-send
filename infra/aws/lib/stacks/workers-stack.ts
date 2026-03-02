@@ -33,7 +33,7 @@ export class WorkersStack extends Stack {
   constructor(scope: Construct, id: string, props: WorkersStackProps) {
     super(scope, id, props);
 
-    const workersPath = path.join(__dirname, '../../../services/workers');
+    const workersPath = path.join(__dirname, '../../../../services/workers');
 
     // SMS Worker (wired to SMS queues)
     this.smsWorker = new WorkerFunction(this, 'SmsWorker', {

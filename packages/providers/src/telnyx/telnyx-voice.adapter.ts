@@ -39,7 +39,7 @@ export class TelnyxVoiceAdapter implements ProviderAdapter {
       if (response.data?.data?.id) {
         return {
           success: true,
-          providerMessageId: response.data.data.id,
+          externalId: response.data.data.id,
           cost: 50000, // $0.05 per call (estimate)
         };
       }

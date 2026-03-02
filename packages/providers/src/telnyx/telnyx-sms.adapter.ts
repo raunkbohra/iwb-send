@@ -33,7 +33,7 @@ export class TelnyxSmsAdapter implements ProviderAdapter {
       if (response.data?.data?.id) {
         return {
           success: true,
-          providerMessageId: response.data.data.id,
+          externalId: response.data.data.id,
           cost: 3000, // $0.003 per SMS (premium provider)
         };
       }

@@ -1,7 +1,7 @@
 import {
   SESClient,
   SendEmailCommand,
-  GetAccountSendingEnabledAttributeCommand,
+  GetAccountSendingEnabledCommand,
 } from '@aws-sdk/client-ses';
 
 import { Channel, ProviderSendInput, ProviderSendResult, AppError } from '@iwb/shared';
@@ -153,7 +153,7 @@ export class SesAdapter implements ProviderAdapter {
 
       const client = new SESClient({ region });
 
-      const command = new GetAccountSendingEnabledAttributeCommand({});
+      const command = new GetAccountSendingEnabledCommand({});
       const response = await client.send(command);
 
       await client.destroy();

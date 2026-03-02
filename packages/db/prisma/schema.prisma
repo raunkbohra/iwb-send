@@ -34,6 +34,7 @@ model Tenant {
   templates            Template[]
   contacts             Contact[]
   contactLists         ContactList[]
+  contactListMembers   ContactListMember[]
   messages             Message[]
   messageEvents        MessageEvent[]
   webhookEndpoints     WebhookEndpoint[]

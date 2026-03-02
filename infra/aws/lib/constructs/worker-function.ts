@@ -10,6 +10,7 @@ import {
   ServicePrincipal,
   PolicyStatement,
   Effect,
+  ManagedPolicy,
 } from 'aws-cdk-lib/aws-iam';
 import { Duration } from 'aws-cdk-lib';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
@@ -45,10 +46,11 @@ export class WorkerFunction extends Construct {
     });
 
     // Add basic Lambda execution policy
-    this.role.addManagedPolicy({
-      managedPolicyArn:
-        'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
-    });
+    this.role.addManagedPolicy(
+      ManagedPolicy.fromAwsManagedPolicyName(
+        'service-role/AWSLambdaBasicExecutionRole'
+      )
+    );
 
     // Add CloudWatch Logs policy
     this.role.addToPrincipalPolicy(
@@ -105,7 +107,6 @@ export class WorkerFunction extends Construct {
       this.function.addEventSource(
         new SqsEventSource(props.sqsQueue, {
           batchSize: props.batchSize || 10,
-          maxBatchingWindowInSeconds: 5,
           reportBatchItemFailures: true, // Enable partial batch failure
         })
       );

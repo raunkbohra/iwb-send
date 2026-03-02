@@ -3,7 +3,6 @@ import {
   Queue,
   QueueProps,
   DeadLetterQueue,
-  ReceiveMessageWaitTime,
 } from 'aws-cdk-lib/aws-sqs';
 import { Duration } from 'aws-cdk-lib';
 
@@ -58,9 +57,7 @@ export class ChannelQueues extends Construct {
       fifo: isFifo,
       contentBasedDeduplication: isFifo,
       visibilityTimeout: Duration.seconds(30),
-      receiveMessageWaitTime: ReceiveMessageWaitTime.longPolling(
-        Duration.seconds(20)
-      ),
+      receiveMessageWaitTime: Duration.seconds(20),
       deadLetterQueue: {
         queue: this.highDlq,
         maxReceiveCount: 3,
@@ -74,9 +71,7 @@ export class ChannelQueues extends Construct {
       fifo: isFifo,
       contentBasedDeduplication: isFifo,
       visibilityTimeout: Duration.seconds(60),
-      receiveMessageWaitTime: ReceiveMessageWaitTime.longPolling(
-        Duration.seconds(20)
-      ),
+      receiveMessageWaitTime: Duration.seconds(20),
       deadLetterQueue: {
         queue: this.bulkDlq,
         maxReceiveCount: 5,

@@ -18,10 +18,10 @@ export interface SqsJobPayload {
  */
 export interface ProviderSendResult {
   success: boolean;
-  providerMessageId?: string;
+  externalId?: string; // Provider's message ID
   errorCode?: string;
   errorMessage?: string;
-  cost?: number; // Micro-units
+  cost?: bigint | number; // Micro-units (1 USD = 1,000,000 units)
 }
 
 /**
