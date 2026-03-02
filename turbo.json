@@ -5,8 +5,11 @@
     ".eslintrc.base.js"
   ],
   "pipeline": {
+    "db:generate": {
+      "cache": false
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "db:generate"],
       "outputs": [".next/**", "dist/**"],
       "cache": true
     },
