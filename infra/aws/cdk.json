@@ -1,0 +1,23 @@
+{
+  "app": "npx ts-node bin/app.ts",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "package*.json",
+      ".git",
+      "node_modules",
+      "cdk.out",
+      "dist"
+    ]
+  },
+  "context": {
+    "environment": "production",
+    "region": "ap-south-1",
+    "domain": "api.iwbsend.com",
+    "webhookDomain": "hooks.iwbsend.com"
+  }
+}

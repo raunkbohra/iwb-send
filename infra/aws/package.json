@@ -1,0 +1,27 @@
+{
+  "name": "@iwb/infra-aws",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AWS CDK infrastructure for iWB Send - SQS queues, Lambda functions, API Gateway",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "cdk": "cdk",
+    "cdk:synth": "cdk synth",
+    "cdk:deploy": "cdk deploy --all --require-approval never",
+    "cdk:destroy": "cdk destroy --force",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.120.0",
+    "constructs": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "aws-cdk": "^2.120.0"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
