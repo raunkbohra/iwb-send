@@ -1,0 +1,8 @@
+*
+!apps/marketing
+!packages
+!pnpm-lock.yaml
+!turbo.json
+!package.json
+!tsconfig.base.json
+!.eslintrc.base.js

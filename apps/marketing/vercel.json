@@ -1,5 +1,4 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "npm install -g pnpm && pnpm install --filter=@iwb/marketing... && pnpm --filter=@iwb/marketing run build",
-  "installCommand": "npm install -g pnpm && cd ../.. && pnpm install"
+  "buildCommand": "cd ../.. && turbo run --filter @iwb/marketing build",
+  "installCommand": "cd ../.. && pnpm install"
 }
