@@ -1,9 +1,8 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   // Can export to static HTML later, or use ISR for dynamic content
   // output: 'export',
 };
 
-export default nextConfig;
+module.exports = nextConfig;
