@@ -109,10 +109,10 @@ export async function processEmailJob(
     }
   }
 
+  const provider = providerRegistry.getAdapter(routeResult.provider, Channel.EMAIL);
   if (!provider) {
     throw AppError.internalError();
   }
-  const provider = providerRegistry.getAdapter(routeResult.provider, Channel.EMAIL);
   let sendResult;
 
   try {
@@ -120,7 +120,7 @@ export async function processEmailJob(
       {
         to: message.to,
         from: message.from,
-        content: message.content,
+        content: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
       },
       credentials
     );

@@ -135,7 +135,7 @@ export async function processSmsJob(
       {
         to: message.to,
         from: message.from || '',
-        content: message.content as Record<string, unknown>,
+        content: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
       },
       credentials
     );
@@ -184,7 +184,7 @@ export async function processSmsJob(
   });
 
   // 7. Append message_event (SENT)
-  const eventPayload: Record<string, unknown> = {};
+  const eventPayload: any = {};
   if (sendResult.externalId) {
     eventPayload.externalId = sendResult.externalId;
   }
