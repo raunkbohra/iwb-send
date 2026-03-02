@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'services/workers/*'
+  - 'packages/*'
+  - 'infra/*'
+  - 'scripts/*'
+
+shared-workspace-lockfile: true

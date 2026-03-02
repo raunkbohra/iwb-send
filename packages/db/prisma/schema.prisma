@@ -1,0 +1,432 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Multi-tenant Core
+// ============================================================
+
+model Tenant {
+  id                   String    @id @default(cuid())
+  name                 String
+  slug                 String    @unique
+  status               String    @default("ACTIVE") // ACTIVE, SUSPENDED, DELETED
+  kycStatus            String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  countryPrimary       String    // ISO 3166-1 alpha-2, e.g. "NP", "IN"
+  dailySmsLimit        BigInt    @default(10000)
+  dailyEmailLimit      BigInt    @default(5000)
+  dailyWhatsappLimit   BigInt    @default(1000)
+  dailyVoiceLimit      BigInt    @default(500)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  users                User[]
+  apiKeys              ApiKey[]
+  providerAccounts     ProviderAccount[]
+  routes               Route[]
+  senderIdentities     SenderIdentity[]
+  templates            Template[]
+  contacts             Contact[]
+  contactLists         ContactList[]
+  messages             Message[]
+  messageEvents        MessageEvent[]
+  webhookEndpoints     WebhookEndpoint[]
+  webhookDeliveries    WebhookDelivery[]
+  walletAccount        WalletAccount?
+  walletLedgerEntries  WalletLedgerEntry[]
+  invoices             Invoice[]
+  suppressionListItems SuppressionListItem[]
+  abuseFlags           AbuseFlag[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String
+  name      String?
+  role      String   @default("MEMBER") // OWNER, ADMIN, MEMBER
+  status    String   @default("ACTIVE") // ACTIVE, INVITED, DISABLED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  tenantId      String
+  name          String
+  keyPrefix     String    // First 8 chars of key for display
+  keyHash       String    @unique // SHA-256 hash of full key
+  scopes        Json      // ["sms:send", "email:send", "templates:read"]
+  status        String    @default("ACTIVE") // ACTIVE, REVOKED
+  expiresAt     DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([keyHash])
+}
+
+// ============================================================
+// Provider Accounts & Routing
+// ============================================================
+
+model ProviderAccount {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  provider            String   // SPARROW, AAKASH, TELNYX, SES, META_WA
+  channel             String   // SMS, EMAIL, WHATSAPP, VOICE
+  status              String   @default("ACTIVE") // ACTIVE, INACTIVE, ERROR
+  credentialsRef      String   // Reference to AWS Secrets Manager
+  config              Json     // Provider-specific config
+  healthScore         Int      @default(100) // 0-100, drives ranking
+  lastHealthCheckAt   DateTime?
+  consecutiveFailures Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  routes Route[]
+
+  @@unique([tenantId, provider, channel])
+  @@index([tenantId, channel])
+  @@index([status])
+}
+
+model Route {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  channel             String   // SMS, EMAIL, WHATSAPP, VOICE
+  countryCode         String   // ISO code or "*" for default
+  providerAccountId   String
+  priority            Int      @default(1) // 1 = highest
+  weight              Int      @default(100) // For weighted random selection
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerAccount ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, channel, countryCode, providerAccountId])
+  @@index([tenantId, channel, isActive])
+}
+
+// ============================================================
+// Sender Identities
+// ============================================================
+
+model SenderIdentity {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String   // SMS_SENDER_ID, EMAIL_DOMAIN, WA_PHONE
+  value     String   // e.g. "IWBSEND", "info@iwbsend.com", "+977..."
+  status    String   @default("PENDING") // PENDING, VERIFIED, FAILED
+  meta      Json?    // Channel-specific metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, type, value])
+  @@index([tenantId, type])
+}
+
+// ============================================================
+// Templates
+// ============================================================
+
+model Template {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  channel             String   // SMS, EMAIL, WHATSAPP, VOICE
+  purpose             String   // TRANSACTIONAL, MARKETING, OTP, etc.
+  name                String
+  content             Json     // { sms: { body }, email: { subject, html, text }, wa: { ... } }
+  externalTemplateId  String?  // For Meta WA template approval
+  status              String   @default("DRAFT") // DRAFT, APPROVED, REJECTED
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([tenantId, channel, purpose, name])
+  @@index([tenantId, channel])
+}
+
+// ============================================================
+// Contacts & Lists
+// ============================================================
+
+model Contact {
+  id    String  @id @default(cuid())
+  tenantId String
+  phone String?
+  email String?
+  name  String?
+  tags  String[] // ["vip", "beta", "indian"]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lists    ContactListMember[]
+
+  @@unique([tenantId, email, phone])
+  @@index([tenantId, tags])
+}
+
+model ContactList {
+  id   String @id @default(cuid())
+  tenantId String
+  name String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant   Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members  ContactListMember[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ContactListMember {
+  listId    String
+  contactId String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  list    ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([listId, contactId])
+  @@index([tenantId])
+}
+
+// ============================================================
+// Messages & Events
+// ============================================================
+
+model Message {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  channel             String    // SMS, EMAIL, WHATSAPP, VOICE
+  purpose             String    // TRANSACTIONAL, MARKETING, OTP
+  to                  String    // Phone or email address
+  from                String?   // Sender ID / from address
+  templateId          String?
+  content             Json?     // Unstructured content if no template
+  status              String    @default("QUEUED") // QUEUED, SENDING, SENT, DELIVERED, FAILED
+  provider            String?   // Which provider sent it
+  providerMessageId   String?   // Reference from provider
+  attemptCount        Int       @default(0)
+  maxAttempts         Int       @default(3)
+  scheduledAt         DateTime?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  failedAt            DateTime?
+  failureCode         String?
+  failureReason       String?
+  idempotencyKey      String?   // For deduplication
+  costUnits           BigInt    @default(0) // Micro-units
+  metadata            Json?     // Custom data
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template      Template?   @relation(fields: [templateId], references: [id])
+  events        MessageEvent[]
+  webhookDeliveries WebhookDelivery[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, channel, createdAt])
+  @@index([providerMessageId])
+}
+
+model MessageEvent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  messageId String
+  type      String   // QUEUED, SENDING, SENT, DELIVERED, FAILED, BOUNCED
+  provider  String?
+  payload   Json?    // Provider-specific event data
+  occurredAt DateTime @default(now())
+
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, messageId])
+  @@index([tenantId, type, occurredAt])
+}
+
+// ============================================================
+// Webhooks
+// ============================================================
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  tenantId  String
+  url       String
+  secretHash String  // HMAC secret for signature verification
+  events    String[] // ["message.sent", "message.delivered", "message.failed"]
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  tenantId     String
+  endpointId   String
+  messageId    String
+  eventType    String
+  status       String   @default("PENDING") // PENDING, DELIVERED, FAILED
+  attemptCount Int      @default(0)
+  lastError    String?
+  nextAttemptAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  endpoint     WebhookEndpoint  @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  message      Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([endpointId, status])
+}
+
+// ============================================================
+// Wallet & Billing
+// ============================================================
+
+model WalletAccount {
+  id         String   @id @default(cuid())
+  tenantId   String   @unique
+  balanceUnits BigInt @default(0)
+  currency   String   @default("USD")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ledgerEntries WalletLedgerEntry[]
+
+  @@index([tenantId])
+}
+
+model WalletLedgerEntry {
+  id             String   @id @default(cuid())
+  tenantId       String
+  walletAccountId String
+  type           String   // CREDIT, DEBIT, REFUND, ADJUSTMENT
+  amountUnits    BigInt
+  balanceAfter   BigInt
+  description    String
+  referenceType  String?  // MESSAGE, INVOICE, MANUAL
+  referenceId    String?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  walletAccount WalletAccount  @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([walletAccountId, createdAt])
+}
+
+model Invoice {
+  id           String   @id @default(cuid())
+  tenantId     String
+  periodStart  DateTime
+  periodEnd    DateTime
+  currency     String   @default("USD")
+  subtotal     BigInt
+  tax          BigInt
+  total        BigInt
+  status       String   @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+// ============================================================
+// Compliance & Security
+// ============================================================
+
+model SuppressionListItem {
+  id        String   @id @default(cuid())
+  tenantId  String?  // NULL = global suppression list
+  email     String?
+  phone     String?
+  reason    String   // COMPLAINT, BOUNCE, MANUAL, DND_REGISTRY
+  source    String   // SES, MANUAL, DLT_REGISTRY
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email, phone])
+  @@index([email])
+  @@index([phone])
+}
+
+model AbuseFlag {
+  id          String   @id @default(cuid())
+  tenantId    String
+  type        String   // SPAM, PHISHING, MALWARE, HARASSMENT
+  severity    String   // LOW, MEDIUM, HIGH, CRITICAL
+  description String
+  metadata    Json?
+  status      String   @default("OPEN") // OPEN, INVESTIGATING, RESOLVED
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, severity])
+}

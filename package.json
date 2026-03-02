@@ -1,0 +1,35 @@
+{
+  "name": "iwb-send",
+  "version": "0.1.0",
+  "description": "Communication infrastructure platform (SMS + Email + WhatsApp + Voice)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules .turbo"
+  },
+  "workspaces": [
+    "apps/*",
+    "services/workers/*",
+    "packages/*",
+    "infra/*",
+    "scripts/*"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "prettier": "^3.1.0",
+    "turbo": "^1.10.16",
+    "typescript": "^5.3.2"
+  },
+  "packageManager": "pnpm@8.12.0"
+}
