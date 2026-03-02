@@ -1,50 +1,38 @@
-import { AppError, RATE_LIMITS } from '@iwb/shared';
-
 /**
- * In-memory rate limiter (MVP)
- * TODO (Batch 4.5): Replace with Upstash Redis
+ * Simple in-memory token bucket rate limiter
+ * For MVP only - replace with Redis in production
  */
+const rateLimitStore = new Map<string, { tokens: number; lastRefill: number }>();
 
-interface RateLimitBucket {
-  count: number;
-  resetAt: number;
-}
+const CONFIG = {
+  tokensPerSecond: 10,
+  maxTokens: 100,
+};
 
-const buckets = new Map<string, RateLimitBucket>();
-
-/**
- * Check if request is within rate limit
- */
-export function checkRateLimit(
-  tenantId: string,
-  channel: string,
-  limit: number = RATE_LIMITS[channel as keyof typeof RATE_LIMITS]?.perSecond || 10
-): boolean {
-  const key = `${tenantId}:${channel}`;
+export function checkRateLimit(tenantId: string): boolean {
   const now = Date.now();
+  let bucket = rateLimitStore.get(tenantId);
 
-  const bucket = buckets.get(key);
-
-  if (!bucket || now > bucket.resetAt) {
-    // New bucket
-    buckets.set(key, { count: 1, resetAt: now + 1000 });
+  if (!bucket) {
+    bucket = { tokens: CONFIG.maxTokens, lastRefill: now };
+    rateLimitStore.set(tenantId, bucket);
     return true;
   }
 
-  if (bucket.count >= limit) {
-    throw AppError.rateLimitExceeded();
+  // Refill tokens
+  const elapsed = (now - bucket.lastRefill) / 1000;
+  const newTokens = Math.min(
+    CONFIG.maxTokens,
+    bucket.tokens + elapsed * CONFIG.tokensPerSecond
+  );
+
+  bucket.tokens = newTokens;
+  bucket.lastRefill = now;
+
+  if (bucket.tokens >= 1) {
+    bucket.tokens -= 1;
+    return true;
   }
 
-  bucket.count++;
-  return true;
+  return false;
 }
-
-// Cleanup old buckets periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, bucket] of buckets.entries()) {
-    if (now > bucket.resetAt) {
-      buckets.delete(key);
-    }
-  }
-}, 30000); // Every 30 seconds

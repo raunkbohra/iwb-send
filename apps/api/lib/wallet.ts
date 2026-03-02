@@ -1,64 +1,48 @@
 import { prisma } from '@iwb/db';
-import { getEstimatedCost, AppError } from '@iwb/shared';
 
 /**
  * Check if tenant has sufficient balance
  */
 export async function checkBalance(
   tenantId: string,
-  channel: string
+  requiredUnits: bigint
 ): Promise<boolean> {
   const wallet = await prisma.walletAccount.findUnique({
     where: { tenantId },
+    select: { balanceUnits: true },
   });
 
-  if (!wallet) {
-    throw AppError.internalError({ message: 'Wallet not found' });
-  }
-
-  const estimatedCost = getEstimatedCost(channel);
-
-  if (wallet.balanceUnits < estimatedCost) {
-    throw AppError.insufficientBalance();
-  }
-
-  return true;
+  if (!wallet) return false;
+  return wallet.balanceUnits >= requiredUnits;
 }
 
 /**
- * Deduct cost from wallet (called after send succeeds)
+ * Debit wallet and create ledger entry
  */
 export async function debitWallet(
   tenantId: string,
-  channel: string,
-  actualCost: bigint
-) {
-  const wallet = await prisma.walletAccount.findUnique({
+  amountUnits: bigint,
+  reference: { type: string; id: string }
+): Promise<void> {
+  const wallet = await prisma.walletAccount.update({
     where: { tenantId },
+    data: {
+      balanceUnits: {
+        decrement: amountUnits,
+      },
+    },
   });
 
-  if (!wallet) {
-    throw AppError.internalError({ message: 'Wallet not found' });
-  }
-
-  const newBalance = wallet.balanceUnits - actualCost;
-
-  // Update wallet
-  await prisma.walletAccount.update({
-    where: { tenantId },
-    data: { balanceUnits: newBalance },
-  });
-
-  // Create ledger entry
   await prisma.walletLedgerEntry.create({
     data: {
       tenantId,
       walletAccountId: wallet.id,
       type: 'DEBIT',
-      amountUnits: actualCost,
-      balanceAfter: newBalance,
-      description: `${channel} message sent`,
-      referenceType: 'MESSAGE',
+      amountUnits,
+      balanceAfter: wallet.balanceUnits - amountUnits,
+      description: `Debit for ${reference.type}`,
+      referenceType: reference.type,
+      referenceId: reference.id,
     },
   });
 }
