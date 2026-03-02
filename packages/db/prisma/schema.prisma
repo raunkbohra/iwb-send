@@ -43,6 +43,10 @@ model Tenant {
   invoices             Invoice[]
   suppressionListItems SuppressionListItem[]
   abuseFlags           AbuseFlag[]
+  phoneNumbers         PhoneNumber[]
+  kycDocuments         KycDocument[]
+  verificationTasks    VerificationTask[]
+  complianceRegistry   ComplianceRegistry?
 
   @@index([status])
   @@index([createdAt])
@@ -429,4 +433,80 @@ model AbuseFlag {
 
   @@index([tenantId, status])
   @@index([tenantId, severity])
+}
+
+// ============================================================
+// Operations & Compliance
+// ============================================================
+
+model PhoneNumber {
+  id            String   @id @default(cuid())
+  tenantId      String
+  country       String   // ISO 3166-1 alpha-2: "NP", "IN", "US"
+  number        String   // E.164 format: +977...
+  provider      String   // TELNYX, SPARROW, AAKASH
+  type          String   // SMS, VOICE, WHATSAPP
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, EXPIRED
+  purchasedAt   DateTime @default(now())
+  expiresAt     DateTime?
+  monthlyRent   BigInt   @default(0) // Micro-units
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, number])
+  @@index([tenantId, provider])
+  @@index([tenantId, status])
+}
+
+model KycDocument {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String   // BUSINESS_REGISTRATION, TAX_ID, DIRECTOR_ID, PASSPORT
+  fileUrl   String   // S3/R2 URL
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, type])
+}
+
+model VerificationTask {
+  id              String   @id @default(cuid())
+  tenantId        String
+  type            String   // SES_DOMAIN, WABA_LINK, DLT_APPROVAL, BTRC_APPROVAL, PHONE_NUMBER, KYC
+  resourceId      String   // sender_identity_id, phone_number_id, kyc_document_id
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  verificationUrl String?  // For manual verification (e.g., domain DKIM instructions)
+  failureReason   String?
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, type])
+  @@index([tenantId, expiresAt])
+}
+
+model ComplianceRegistry {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  canSendToIndia  Boolean  @default(false) // Requires DLT approval
+  canSendToNepal  Boolean  @default(false) // Requires BTRC approval
+  canSendGlobal   Boolean  @default(false) // Requires KYC + domain verification
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

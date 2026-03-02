@@ -1,0 +1,28 @@
+{
+  "name": "@iwb/operations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./sender-identities": "./dist/sender-identities.js",
+    "./phone-numbers": "./dist/phone-numbers.js",
+    "./waba": "./dist/waba.js",
+    "./kyc": "./dist/kyc.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@iwb/db": "workspace:*",
+    "@iwb/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2"
+  }
+}
